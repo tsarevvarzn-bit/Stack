@@ -1,18 +1,31 @@
 #include "Common.h"
-#include "Secure_shells.cpp"
+//#include "Secure_shells.cpp"
 
-stack_t*    createStack(const size_t capacity);
-void        printStack(const stack_t* const stack_p);
-void        stackPush(stack_t* const stack_p, const double new_elem);
-void        stackPop(stack_t* const stack_p, double* const last_elem_p);
-void        stackDelete(stack_t* const stack_p);
-code_errors checkStack(const stack_t* const stack_p);
+code_errors createStack(      stack_t** const stack_p, const size_t capacity);
+
+void        printStack (const stack_t* const stack_p);
+code_errors        stackPush  (      stack_t* const stack_p, const double new_elem);
+code_errors        stackPop   (      stack_t* const stack_p, double* const last_elem_p);
+void        stackDelete(      stack_t* const stack_p);
+code_errors checkStack (const stack_t* const stack_p);
 
 void        printBeautifulSpaces(size_t elem_index, size_t max_index);
 
 int main(){
 
-    stack_t* stack_p = createStack(DEFAULT_STACK_SIZE);
+    stack_t* stack_p = NULL;
+
+    int error_code = correct;
+
+    if((error_code = createStack(&stack_p, DEFAULT_STACK_SIZE)) != correct){
+
+        printf(RED "Can't create a stack, error:\n" DEFAULT);
+        perror(RED "Error is fatal, \n Errno print: " DEFAULT);
+        return errno;
+    }
+
+    stack_p->data[2] = 2;
+
     printStack(stack_p);
 
     char command[MAX_COMMAND_LEN] = "";
@@ -40,32 +53,68 @@ int main(){
     stackDelete(stack_p);
 }
 
-stack_t*    createStack(const size_t capacity){
+//TODO вопрос: если realloc() выдал указатель null, то мы можем пользоваться старым указателем, сохранились ли наши данные?
+//TODO вопрос: если мы урезаем память, гарантируется ли что realloc не выдаст ноль
 
-    stack_t* stack_p = (stack_t*) safeCalloc(1, sizeof(stack_t));
-    stack_p->data = (double*) safeCalloc(capacity, sizeof(double));
-    stack_p->size = 0;
-    stack_p->capacity = capacity;
+/*
+Ошибки, программиста, можем assert'ить:
+Фатальные:
+stack_data_is_NULL,
+stack_size_larger_than_capacity,
+stack_capacity_is_zero
+Не фатальные:
+stack_elem_is_poison,
+stack_unuse_elem_is_not_a_poison,
+Ошибки, которые могут вылезти при работе правильной программы (обрабатываем, не assert'им):
+memory_cannot_be_allocated_for_stack_expansion,
+memory_cannot_be_allocated_for_stack_reducing,
+memory_cannot_be_allocated_to_create_a_stack
+
+*/
+
+code_errors createStack(stack_t** const stack_p_p, const size_t capacity){
+
+    assert(stack_p_p);
+    assert(capacity > 0);
+
+    *stack_p_p = (stack_t*) calloc(1, sizeof(stack_t));
+
+    if(*stack_p_p == NULL){
+
+        return memory_cannot_be_allocated_to_create_a_stack;
+    }
+
+
+    (*stack_p_p)->data = (double*) calloc(capacity, sizeof(double));
+
+    if((*stack_p_p)->data == NULL){
+
+        free(*stack_p_p);
+        return memory_cannot_be_allocated_to_create_a_stack;
+    }
+
+    (*stack_p_p)->size = 0;
+    (*stack_p_p)->capacity = capacity;
 
     for(size_t i = 0; i < capacity; i++){
 
-        stack_p->data[i] = NAN;
+        (*stack_p_p)->data[i] = NAN;
     }
 
-    assert(checkStack(stack_p) == correct);
 
-    return stack_p;
+    assert(checkStack(*stack_p_p) == correct);
+
+    return correct;
 }
 
 void        printStack(const stack_t* const stack_p){
 
     assert(stack_p);
-
     assert(checkStack(stack_p) == correct);
 
     printf("Printing of stack " CYAN "[%p]\n\n" DEFAULT, stack_p);
-    printf("\tSize      " CYAN "[%p]: " GREEN "%llu\n" DEFAULT, &stack_p->size, stack_p->size);
-    printf("\tCapacity  " CYAN "[%p]: " YELLOW "%llu\n" DEFAULT, &stack_p->capacity, stack_p->capacity);
+    printf("\tsize      " CYAN "[%p]: " GREEN "%llu\n" DEFAULT, &stack_p->size, stack_p->size);
+    printf("\tcapacity  " CYAN "[%p]: " YELLOW "%llu\n" DEFAULT, &stack_p->capacity, stack_p->capacity);
     printf("\tdata      " CYAN "[%p]:\n" DEFAULT, stack_p->data);
 
     for(size_t i = 0; i < stack_p->capacity; i++){
@@ -81,18 +130,33 @@ void        printStack(const stack_t* const stack_p){
             printf(" = %lg\n", stack_p->data[i]);
         }
     }
+
+    assert(checkStack(stack_p) == correct);
 }
 
-void        stackPush(stack_t* const stack_p, const double new_elem){
+code_errors        stackPush(stack_t* const stack_p, const double new_elem){
 
     assert(stack_p);
-
     assert(checkStack(stack_p) == correct);
 
     if(stack_p->size == stack_p->capacity){
 
+        void* new_pointer = realloc(stack_p->data, stack_p->capacity * sizeof(double) * 2);//TODO не падать, обрабатывать не расширение как warning
+
+        if(new_pointer == NULL){
+
+            printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
+                   "Stack overflow, memory cannot be allocated for stack expansion\n"
+                   "Errno output: %s",
+                    stack_p, stack_p->size, stack_p->capacity, strerror(errno));
+
+            assert(checkStack(stack_p) == correct);
+
+            return memory_cannot_be_allocated_for_stack_expansion;
+        }
+
+        stack_p->data = (double*) new_pointer;
         stack_p->capacity *= 2;
-        stack_p->data = (double*) safeRealloc(stack_p->data, stack_p->capacity * sizeof(double));//TODO не падать, обрабатывать не расширение как warning
 
         for(size_t i = stack_p->capacity / 2; i < stack_p->capacity; i++){
 
@@ -103,13 +167,16 @@ void        stackPush(stack_t* const stack_p, const double new_elem){
     }
 
     stack_p->data[stack_p->size++] = new_elem;
+
+    assert(checkStack(stack_p) == correct);
+
+    return correct;
 }
 
-void        stackPop(stack_t* const stack_p, double* const last_elem_p){
+code_errors     stackPop(stack_t* const stack_p, double* const last_elem_p){
 
     assert(stack_p);
     assert(last_elem_p);
-
     assert(checkStack(stack_p) == correct);
 
     if(stack_p->size != 0){
@@ -122,24 +189,41 @@ void        stackPop(stack_t* const stack_p, double* const last_elem_p){
 
         if(stack_p->size*4 <= stack_p->capacity && stack_p->capacity != 1){
 
+            void* new_pointer = realloc(stack_p->data, stack_p->capacity * sizeof(double) / 2);
+
+            if(new_pointer == NULL){
+
+                printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
+                       "Memory cannot be allocated for stack reducing\n"
+                       "Errno output: %s",
+                        stack_p, stack_p->size, stack_p->capacity, strerror(errno));
+
+                assert(checkStack(stack_p) == correct);
+
+                return memory_cannot_be_allocated_for_stack_expansion;
+            }
+
+            stack_p->data = (double*) new_pointer;
             stack_p->capacity /= 2;
-            stack_p->data = (double*) safeRealloc(stack_p->data, stack_p->capacity * sizeof(double));
 
             printf("Stack " VIOLET "reallocate" DEFAULT ", new stack capacity: " YELLOW "%llu\n" DEFAULT, stack_p->capacity);
         }
 
     }else{
 
-        printf(RED "ERROR: there is no elements in stack!\n" DEFAULT);
+        printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
+               "Stack underflow, there is no elements in stack\n" DEFAULT,
+                stack_p, stack_p->size, stack_p->capacity);
+
         *last_elem_p = NAN;
     }
 
+    return correct;
 }
 
 void        stackDelete(stack_t* const stack_p){
 
     assert(stack_p);
-
     assert(checkStack(stack_p) == correct);
 
     free(stack_p->data);
@@ -162,15 +246,12 @@ code_errors checkStack(const stack_t* const stack_p){
                            "Element %llu: %lg is NAN\n" DEFAULT,
                             stack_p, stack_p->size, stack_p->capacity, i, stack_p->data[i]);
 
-                    return stack_elem_is_poison;
-
                 }else if(i >= stack_p->size && ! isnan(stack_p->data[i])){
 
                     printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" YELLOW
                            "Element %llu: %lg is not a nan\n" DEFAULT,
                             stack_p, stack_p->size, stack_p->capacity, i, stack_p->data[i]);
 
-                    return stack_unuse_elem_is_not_a_poison;
                 }
             }
 

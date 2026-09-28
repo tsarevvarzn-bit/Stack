@@ -15,7 +15,7 @@
 #define VIOLET  "\033[1;35m"
 #define CYAN    "\033[1;36m"
 
-#define ISDEBUGMODE 1
+//#define ISDEBUGMODE 1
 
 //typedef double stack_elem_t;
 
@@ -23,17 +23,33 @@ const unsigned int MAX_COMMAND_LEN = 100;
 const size_t       DEFAULT_STACK_SIZE = 5;
 
 enum code_errors{
+
     correct,
-    stack_data_is_NULL,
+
+    stack_data_is_NULL,             //Фатальные ошибки программиста
     stack_size_larger_than_capacity,
-    stack_elem_is_poison,
-    stack_unuse_elem_is_not_a_poison,
-    stack_overflow,
-    stack_underflow
+    stack_capacity_is_zero,
+
+    memory_cannot_be_allocated_for_stack_expansion, //Не фатальные, должна быть обработана + взаимодействие с пользователем
+    memory_cannot_be_allocated_for_stack_reducing,
+    memory_cannot_be_allocated_to_create_a_stack    //Фатально для конкретного стэка
 };
 
 struct stack_t{
+
     size_t  size;
     size_t  capacity;
     double* data;
 };
+
+/*!SECTION
+
+    safe_call(fuction)
+
+    int error_code = correct;
+    if(error_code = fuction) != correct){
+
+        strerrno(errno);
+        return error_code;
+    }
+*/
