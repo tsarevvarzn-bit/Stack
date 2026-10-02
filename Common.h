@@ -35,21 +35,80 @@ enum code_errors{
     memory_cannot_be_allocated_to_create_a_stack    //Фатально для конкретного стэка
 };
 
+#define IS_DEBUG 1
+//TODO защита от взлома стэка канарейками и хэшом (два хэша: на данные и на сам стэк)
+#if IS_DEBUG
+
+    #define ON_DEBUG(...) __VA_ARGS__
+
+    #define MY_ASSERT(str)                                                                                          \
+                                                                                                                    \
+    if(!(str)){                                                                                                     \
+        printf("\nMy assertion failed: " #str ", file %s:%d, function: %s", __FILE_NAME__, __LINE__, __func__);     \
+        abort();                                                                                                    \
+    }                                                                                                                               //TODO ending with ;
+
+#else
+
+    #define ON_DEBUG(...)
+
+    #define MY_ASSERT(str)
+
+#endif
+
+
+#define CHECK_STACK(stack_p, comment) checkStack(stack_p, __FILE_NAME__, __LINE__, __func__, comment)
+
+enum elem_types{
+
+    char_type = 0,
+    double_type = 1
+};
+
+#define ELEM_TYPE 1
+
+#if ELEM_TYPE == 0
+
+    #define POISON '@'
+
+    #define IS_POISON(elem) ((elem) == POISON)
+
+    typedef char elem_type;
+
+    #define PRINT_ELEM(x) printf("%c", x)
+
+    #define SCAN_ELEM(x) getchar(); scanf("%c", x)
+
+#elif ELEM_TYPE == 1
+
+    #define POISON NAN
+
+    #define IS_POISON(elem) isnan(elem)
+
+    typedef double elem_type;
+
+    #define PRINT_ELEM(x) printf("%lg", x)
+
+    #define SCAN_ELEM(x) scanf("%lg", x)
+
+#endif
 struct stack_t{
 
     size_t  size;
     size_t  capacity;
-    double* data;
+    elem_type* data;
 };
 
-/*!SECTION
 
-    safe_call(fuction)
+// enum PolicyType {
+//     IntegerType,
+//     DoubleType,
+//     //...
+// }
 
-    int error_code = correct;
-    if(error_code = fuction) != correct){
-
-        strerrno(errno);
-        return error_code;
-    }
-*/
+// #define STACK_ELEMENT_TYPE_POLICY IntegerType
+//
+// #if STACK_ELEMENT_TYPE == IntegerType
+//     typedef int stack_elem_t
+//     int PoisonValue = 0x666;
+// #elif

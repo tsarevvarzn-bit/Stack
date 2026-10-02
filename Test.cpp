@@ -1,20 +1,19 @@
-#include "Common.h"
+#include <stdio.h>
 
-void printBeautifulSpaces(size_t capacity);
+#define CALL_INFO(str, comment) makeInfoStr(str, __FILE_NAME__, __LINE__, __func__, comment)
+
+void makeInfoStr(char* const str, const char* const file_name, unsigned int line, const char* const func_name, const char* const comment){
+
+    sprintf(str, "Check of stack was called in %s:%d in function %s, %s", file_name, line, func_name, comment);
+}
 
 int main(){
 
-    printf("<");
-    printBeautifulSpaces(5);
-    printf(">");
+    char buffer[100] = {};
+
+    CALL_INFO(buffer, "This is my comment yoo");
+
+    printf("%s", buffer);
 
 }
 
-void printBeautifulSpaces(size_t capacity){
-
-    while(capacity >= 10){
-
-        capacity /= 10;
-        putchar(' ');
-    }
-}

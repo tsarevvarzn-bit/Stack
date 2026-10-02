@@ -1,15 +1,19 @@
 #include "Common.h"
-//#include "Secure_shells.cpp"
 
-code_errors createStack(      stack_t** const stack_p, const size_t capacity);
+code_errors createStack(       stack_t** const stack_p, const size_t capacity);
 
-void        printStack (const stack_t* const stack_p);
-code_errors        stackPush  (      stack_t* const stack_p, const double new_elem);
-code_errors        stackPop   (      stack_t* const stack_p, double* const last_elem_p);
-void        stackDelete(      stack_t* const stack_p);
-code_errors checkStack (const stack_t* const stack_p);
+void        printStack (const  stack_t* const stack_p);
+code_errors stackPush  (       stack_t* const stack_p, const elem_type new_elem);
+code_errors stackPop   (       stack_t* const stack_p, elem_type* const last_elem_p);
+void        stackDelete(       stack_t* const stack_p);
+code_errors verifyStack (const stack_t* const stack_p, const char* const call_info);
+
+code_errors stackResizeUp(     stack_t* const stack_p);
+code_errors stackResizeDown(   stack_t* const stack_p);
 
 void        printBeautifulSpaces(size_t elem_index, size_t max_index);
+
+void        checkStack(const stack_t* const stack_p, const char* const file_name, unsigned int line, const char* const func_name, const char* const comment);
 
 int main(){
 
@@ -24,27 +28,27 @@ int main(){
         return errno;
     }
 
-    stack_p->data[2] = 2;
-
     printStack(stack_p);
 
     char command[MAX_COMMAND_LEN] = "";
-    double buffer = 0;
+    elem_type buffer = 0;
 
     while(strcmp(command, "end") != 0){
 
-        scanf("%s", command); //TODO safe input
+        scanf("%s", command);
 
         if(strcmp(command,"push") == 0){
 
-            scanf("%lg", &buffer);
+            SCAN_ELEM(&buffer);
             stackPush(stack_p, buffer);
             printStack(stack_p);
 
         }else if(strcmp(command,"pop") == 0){
 
             stackPop(stack_p, &buffer);
-            printf("Last element: " VIOLET "%lg\n" DEFAULT, buffer);
+            printf("Last element: " VIOLET);
+            PRINT_ELEM(buffer);
+            printf("\n" DEFAULT);
             printStack(stack_p);
 
         }
@@ -53,11 +57,11 @@ int main(){
     stackDelete(stack_p);
 }
 
-//TODO вопрос: если realloc() выдал указатель null, то мы можем пользоваться старым указателем, сохранились ли наши данные?
-//TODO вопрос: если мы урезаем память, гарантируется ли что realloc не выдаст ноль
+//TODO вопрос: если realloc() выдал указатель null, то мы можем пользоваться старым указателем, сохранились ли наши данные? - ДА, НУЖНО СОХРАНЯТЬ СТАРЫЙ УКАЗАТЕЛЬ
+//TODO вопрос: если мы урезаем память, гарантируется ли что realloc не выдаст ноль - ДА, НО ПРОВЕРЯЕМ
 
 /*
-Ошибки, программиста, можем assert'ить:
+Ошибки, программиста, можем MY_ASSERT'ить:
 Фатальные:
 stack_data_is_NULL,
 stack_size_larger_than_capacity,
@@ -65,7 +69,7 @@ stack_capacity_is_zero
 Не фатальные:
 stack_elem_is_poison,
 stack_unuse_elem_is_not_a_poison,
-Ошибки, которые могут вылезти при работе правильной программы (обрабатываем, не assert'им):
+Ошибки, которые могут вылезти при работе правильной программы (обрабатываем, не MY_ASSERT'им):
 memory_cannot_be_allocated_for_stack_expansion,
 memory_cannot_be_allocated_for_stack_reducing,
 memory_cannot_be_allocated_to_create_a_stack
@@ -74,8 +78,8 @@ memory_cannot_be_allocated_to_create_a_stack
 
 code_errors createStack(stack_t** const stack_p_p, const size_t capacity){
 
-    assert(stack_p_p);
-    assert(capacity > 0);
+    MY_ASSERT(stack_p_p)
+    MY_ASSERT(capacity > 0)
 
     *stack_p_p = (stack_t*) calloc(1, sizeof(stack_t));
 
@@ -85,7 +89,7 @@ code_errors createStack(stack_t** const stack_p_p, const size_t capacity){
     }
 
 
-    (*stack_p_p)->data = (double*) calloc(capacity, sizeof(double));
+    (*stack_p_p)->data = (elem_type*) calloc(capacity, sizeof(double));
 
     if((*stack_p_p)->data == NULL){
 
@@ -98,24 +102,29 @@ code_errors createStack(stack_t** const stack_p_p, const size_t capacity){
 
     for(size_t i = 0; i < capacity; i++){
 
-        (*stack_p_p)->data[i] = NAN;
+        (*stack_p_p)->data[i] = POISON;
     }
 
+    (*stack_p_p)->data[2] = 2;
+    //(*stack_p_p)->size = 20;
+    //(*stack_p_p)->capacity = 50;
+    //(*stack_p_p)->data = NULL;
 
-    assert(checkStack(*stack_p_p) == correct);
+
+    CHECK_STACK((*stack_p_p), "check on exit");
 
     return correct;
 }
 
 void        printStack(const stack_t* const stack_p){
 
-    assert(stack_p);
-    assert(checkStack(stack_p) == correct);
+    MY_ASSERT(stack_p)
+    MY_ASSERT(stack_p->data)
 
-    printf("Printing of stack " CYAN "[%p]\n\n" DEFAULT, stack_p);
-    printf("\tsize      " CYAN "[%p]: " GREEN "%llu\n" DEFAULT, &stack_p->size, stack_p->size);
-    printf("\tcapacity  " CYAN "[%p]: " YELLOW "%llu\n" DEFAULT, &stack_p->capacity, stack_p->capacity);
-    printf("\tdata      " CYAN "[%p]:\n" DEFAULT, stack_p->data);
+    printf("Printing of stack" CYAN ON_DEBUG(" [%p]") DEFAULT ":\n\n" DEFAULT ON_DEBUG(, stack_p));
+    printf("\tsize      " CYAN ON_DEBUG("[%p]") DEFAULT ":" GREEN "%llu\n" DEFAULT, ON_DEBUG(&stack_p->size,) stack_p->size);
+    printf("\tcapacity  " CYAN ON_DEBUG("[%p]") DEFAULT ":" YELLOW "%llu\n" DEFAULT, ON_DEBUG(&stack_p->capacity,) stack_p->capacity);
+    printf("\tdata" CYAN ON_DEBUG("      [%p]") DEFAULT ":\n" DEFAULT ON_DEBUG(,stack_p->data));
 
     for(size_t i = 0; i < stack_p->capacity; i++){
 
@@ -123,154 +132,122 @@ void        printStack(const stack_t* const stack_p){
         if(i < stack_p->size){
             printf(GREEN "*"  DEFAULT "[" YELLOW "%llu" DEFAULT "]" DEFAULT, i);
             printBeautifulSpaces(i, stack_p->capacity - 1);
-            printf(" = " VIOLET "%lg\n" DEFAULT, stack_p->data[i]);
+            printf(" = " VIOLET);
+            PRINT_ELEM(stack_p->data[i]);
+            printf(DEFAULT);
+
+            ON_DEBUG(
+            if(IS_POISON(stack_p->data[i]))
+                printf(YELLOW " - POISON" DEFAULT);
+            )
+
+            printf("\n");
+
         }else{
             printf(DEFAULT " [" DEFAULT "%llu" DEFAULT "]" DEFAULT, i);
             printBeautifulSpaces(i, stack_p->capacity - 1);
-            printf(" = %lg\n", stack_p->data[i]);
+            printf(" = ");
+            PRINT_ELEM(stack_p->data[i]);
+
+            ON_DEBUG(
+            if(!IS_POISON(stack_p->data[i]))
+                printf(YELLOW " - NOT A POISON" DEFAULT);
+            )
+
+            printf("\n");
         }
     }
 
-    assert(checkStack(stack_p) == correct);
+    MY_ASSERT(stack_p->data)
 }
 
-code_errors        stackPush(stack_t* const stack_p, const double new_elem){
+code_errors        stackPush(stack_t* const stack_p, const elem_type new_elem){
 
-    assert(stack_p);
-    assert(checkStack(stack_p) == correct);
+    MY_ASSERT(stack_p)
+    CHECK_STACK(stack_p, "check on input");
 
-    if(stack_p->size == stack_p->capacity){
+    code_errors error_code = correct;
 
-        void* new_pointer = realloc(stack_p->data, stack_p->capacity * sizeof(double) * 2);//TODO не падать, обрабатывать не расширение как warning
+    if(stack_p->size == stack_p->capacity && (error_code = stackResizeUp(stack_p)) != correct){
 
-        if(new_pointer == NULL){
-
-            printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
-                   "Stack overflow, memory cannot be allocated for stack expansion\n"
-                   "Errno output: %s",
-                    stack_p, stack_p->size, stack_p->capacity, strerror(errno));
-
-            assert(checkStack(stack_p) == correct);
-
-            return memory_cannot_be_allocated_for_stack_expansion;
-        }
-
-        stack_p->data = (double*) new_pointer;
-        stack_p->capacity *= 2;
-
-        for(size_t i = stack_p->capacity / 2; i < stack_p->capacity; i++){
-
-            stack_p->data[i] = NAN;
-        }
-
-        printf("Stack " VIOLET "reallocate" DEFAULT ", new stack capacity: " YELLOW "%llu\n" DEFAULT, stack_p->capacity);
+        return error_code;
     }
 
     stack_p->data[stack_p->size++] = new_elem;
 
-    assert(checkStack(stack_p) == correct);
+    CHECK_STACK(stack_p, "check on exit");
 
     return correct;
 }
 
-code_errors     stackPop(stack_t* const stack_p, double* const last_elem_p){
+code_errors     stackPop(stack_t* const stack_p, elem_type* const last_elem_p){
 
-    assert(stack_p);
-    assert(last_elem_p);
-    assert(checkStack(stack_p) == correct);
+    MY_ASSERT(stack_p)
+    MY_ASSERT(last_elem_p)
+    CHECK_STACK(stack_p, "check on input");
 
     if(stack_p->size != 0){
 
         *last_elem_p = stack_p->data[stack_p->size - 1];
-
-        stack_p->data[stack_p->size - 1] = NAN;
-
+        stack_p->data[stack_p->size - 1] = POISON;
         stack_p->size--;
 
-        if(stack_p->size*4 <= stack_p->capacity && stack_p->capacity != 1){
+        code_errors error_code = correct;
 
-            void* new_pointer = realloc(stack_p->data, stack_p->capacity * sizeof(double) / 2);
+        if(stack_p->size * 4 <= stack_p->capacity && stack_p->capacity != 1 && (error_code = stackResizeDown(stack_p)) != correct){
 
-            if(new_pointer == NULL){
-
-                printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
-                       "Memory cannot be allocated for stack reducing\n"
-                       "Errno output: %s",
-                        stack_p, stack_p->size, stack_p->capacity, strerror(errno));
-
-                assert(checkStack(stack_p) == correct);
-
-                return memory_cannot_be_allocated_for_stack_expansion;
-            }
-
-            stack_p->data = (double*) new_pointer;
-            stack_p->capacity /= 2;
-
-            printf("Stack " VIOLET "reallocate" DEFAULT ", new stack capacity: " YELLOW "%llu\n" DEFAULT, stack_p->capacity);
+            return error_code;
         }
 
     }else{
 
-        printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
+        printf("Stack " CYAN ON_DEBUG("[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
                "Stack underflow, there is no elements in stack\n" DEFAULT,
-                stack_p, stack_p->size, stack_p->capacity);
+                ON_DEBUG(stack_p,) stack_p->size, stack_p->capacity);
 
-        *last_elem_p = NAN;
+        *last_elem_p = POISON;
     }
+
+    CHECK_STACK(stack_p, "check on exit");
 
     return correct;
 }
 
 void        stackDelete(stack_t* const stack_p){
 
-    assert(stack_p);
-    assert(checkStack(stack_p) == correct);
+    MY_ASSERT(stack_p)
+    CHECK_STACK(stack_p, "check on input");
 
     free(stack_p->data);
     free(stack_p);
 }
 
-code_errors checkStack(const stack_t* const stack_p){
+code_errors verifyStack(const stack_t* const stack_p, const char* const call_info){ //Проверяет ошибки программиста, в билде не должен вызываться
 
-    assert(stack_p);
+    MY_ASSERT(stack_p)
 
-    if(stack_p->data != NULL){
+    if(stack_p->data != NULL){//TODO канарейки и хэши
 
         if(stack_p->size <= stack_p->capacity){
-
-            for(size_t i = 0; i < stack_p->capacity; i++){
-
-                if(i < stack_p->size && isnan(stack_p->data[i])){
-
-                    printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" YELLOW
-                           "Element %llu: %lg is NAN\n" DEFAULT,
-                            stack_p, stack_p->size, stack_p->capacity, i, stack_p->data[i]);
-
-                }else if(i >= stack_p->size && ! isnan(stack_p->data[i])){
-
-                    printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" YELLOW
-                           "Element %llu: %lg is not a nan\n" DEFAULT,
-                            stack_p, stack_p->size, stack_p->capacity, i, stack_p->data[i]);
-
-                }
-            }
 
             return correct;
 
         }else{
 
-            printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" YELLOW
-                   "size > capacity\n" DEFAULT,
-                    stack_p, stack_p->size, stack_p->capacity);
+            printf(VIOLET "%s" DEFAULT ", stack" CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
+                   "size > capacity" YELLOW ", stack dump:\n" DEFAULT,
+                    call_info, stack_p, stack_p->size, stack_p->capacity);
+
+            printStack(stack_p);
 
             return stack_size_larger_than_capacity;
         }
 
     }else{
 
-        printf("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" YELLOW
-           "stack_p->data == NULL\n" DEFAULT,
-            stack_p, stack_p->size, stack_p->capacity);
+        printf(VIOLET "%s" DEFAULT ", stack" CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
+               "stack_p->data == NULL" YELLOW ", stack dump:\n" DEFAULT,
+                call_info, stack_p, stack_p->size, stack_p->capacity);
 
         return stack_data_is_NULL;
     }
@@ -278,7 +255,7 @@ code_errors checkStack(const stack_t* const stack_p){
 
 void        printBeautifulSpaces(size_t elem_index, size_t max_index){
 
-    assert(elem_index <= max_index);
+    MY_ASSERT(elem_index <= max_index)
 
     int size_log = 0;
 
@@ -299,5 +276,83 @@ void        printBeautifulSpaces(size_t elem_index, size_t max_index){
     }
 }
 
+code_errors stackResizeUp(stack_t* const stack_p){
+
+    MY_ASSERT(stack_p)
+    CHECK_STACK(stack_p, "check on input");
+
+    void* new_pointer = realloc(stack_p->data, stack_p->capacity * sizeof(elem_type) * 2);
+
+    if(new_pointer == NULL){
+
+        printf("Stack " CYAN ON_DEBUG("[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
+                "Stack overflow, memory cannot be allocated for stack expansion\n"
+                ON_DEBUG("Errno output: %s"),
+                ON_DEBUG(stack_p,) stack_p->size, stack_p->capacity ON_DEBUG(, strerror(errno)));
+
+        CHECK_STACK(stack_p, "check on exit");
+
+        return memory_cannot_be_allocated_for_stack_expansion;
+    }
+
+    stack_p->data = (elem_type*) new_pointer;
+    stack_p->capacity *= 2;
+
+    for(size_t i = stack_p->capacity / 2; i < stack_p->capacity; i++){
+
+        stack_p->data[i] = POISON;
+    }
+
+    ON_DEBUG(printf("Stack " VIOLET "reallocate" DEFAULT ", new stack capacity: " YELLOW "%llu\n" DEFAULT, stack_p->capacity);)
+
+    CHECK_STACK(stack_p, "check on exit");
+
+    return correct;
+}
+
+code_errors stackResizeDown(stack_t* const stack_p){
+
+    MY_ASSERT(stack_p)
+    CHECK_STACK(stack_p, "check on input");
+
+
+    void* new_pointer = realloc(stack_p->data, stack_p->capacity * sizeof(elem_type) / 2);
+
+    if(new_pointer == NULL){
+
+        printf("Stack " CYAN ON_DEBUG("[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
+                "Memory cannot be allocated for stack reducing\n"
+                ON_DEBUG("Errno output: %s"),
+                ON_DEBUG(stack_p,) stack_p->size, stack_p->capacity ON_DEBUG(, strerror(errno)));
+
+        CHECK_STACK(stack_p, "check on exit");
+
+        return memory_cannot_be_allocated_for_stack_expansion;
+    }
+
+    stack_p->data = (elem_type*) new_pointer;
+    stack_p->capacity /= 2;
+
+    ON_DEBUG(printf("Stack " VIOLET "reallocate" DEFAULT ", new stack capacity: " YELLOW "%llu\n" DEFAULT, stack_p->capacity);)
+
+    CHECK_STACK(stack_p, "check on exit");
+
+    return correct;
+}
+
+void checkStack(const stack_t* const stack_p, const char* const file_name, unsigned int line, const char* const func_name, const char* const comment){
+
+    MY_ASSERT(file_name)
+    MY_ASSERT(func_name)
+    MY_ASSERT(comment)
+
+    char str[100] = "";
+    sprintf(str, "Check of stack was called in %s:%d in function %s, comment: %s", file_name, line, func_name, comment);
+
+    if(verifyStack(stack_p, str) != correct){
+
+        abort();
+    }
+}
 
 //TODO в коммандной строке можем работать сразу с несколькими стэками: создать стэк, удалить стэк, добавить элемент/убрать
