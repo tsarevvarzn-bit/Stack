@@ -15,20 +15,25 @@
 #define VIOLET  "\033[1;35m"
 #define CYAN    "\033[1;36m"
 
-//#define ISDEBUGMODE 1
-
-//typedef double stack_elem_t;
-
-const unsigned int MAX_COMMAND_LEN = 100;
+const unsigned int MAX_COMMAND_LEN    = 100;
 const size_t       DEFAULT_STACK_SIZE = 5;
+const size_t       CANARY         = 0xC000FEEE;
 
 enum code_errors{
 
     correct,
 
     stack_data_is_NULL,             //Фатальные ошибки программиста
+    stack_first_elem_p_is_null,
+    stack_first_elem_p_is_incorrect,
     stack_size_larger_than_capacity,
     stack_capacity_is_zero,
+
+    left_canary_in_stack_is_dead,
+    right_canary_in_stack_is_dead,
+    left_canary_in_data_is_dead,
+    right_canary_in_data_is_dead,
+    hash_is_incorrect,
 
     memory_cannot_be_allocated_for_stack_expansion, //Не фатальные, должна быть обработана + взаимодействие с пользователем
     memory_cannot_be_allocated_for_stack_reducing,
@@ -37,37 +42,35 @@ enum code_errors{
 
 #define IS_DEBUG 1
 //TODO защита от взлома стэка канарейками и хэшом (два хэша: на данные и на сам стэк)
+
+#define MY_ASSERT(str)                                                                                          \
+                                                                                                                \
+if(!(str)){                                                                                                     \
+    printf("\nMy assertion failed: " #str ", file %s:%d, function: %s", __FILE_NAME__, __LINE__, __func__);     \
+    abort();                                                                                                    \
+}                                                                                                                               //TODO ending with ;
+
+
 #if IS_DEBUG
 
     #define ON_DEBUG(...) __VA_ARGS__
 
-    #define MY_ASSERT(str)                                                                                          \
-                                                                                                                    \
-    if(!(str)){                                                                                                     \
-        printf("\nMy assertion failed: " #str ", file %s:%d, function: %s", __FILE_NAME__, __LINE__, __func__);     \
-        abort();                                                                                                    \
-    }                                                                                                                               //TODO ending with ;
-
 #else
 
     #define ON_DEBUG(...)
-
-    #define MY_ASSERT(str)
 
 #endif
 
 
 #define CHECK_STACK(stack_p, comment) checkStack(stack_p, __FILE_NAME__, __LINE__, __func__, comment)
 
-enum elem_types{
 
-    char_type = 0,
-    double_type = 1
-};
+#define CHAR_TYPE 0
+#define DOUBLE_TYPE 1
 
-#define ELEM_TYPE 1
+#define ELEM_TYPE CHAR_TYPE
 
-#if ELEM_TYPE == 0
+#if ELEM_TYPE == CHAR_TYPE
 
     #define POISON '@'
 
@@ -79,7 +82,7 @@ enum elem_types{
 
     #define SCAN_ELEM(x) getchar(); scanf("%c", x)
 
-#elif ELEM_TYPE == 1
+#elif ELEM_TYPE == DOUBLE_TYPE
 
     #define POISON NAN
 
@@ -92,23 +95,14 @@ enum elem_types{
     #define SCAN_ELEM(x) scanf("%lg", x)
 
 #endif
+
+
 struct stack_t{
 
-    size_t  size;
-    size_t  capacity;
-    elem_type* data;
+    size_t     canary_left;
+    size_t     size;
+    size_t     capacity;
+    char*      data;
+    elem_type* first_elem_p;
+    size_t     canary_right;
 };
-
-
-// enum PolicyType {
-//     IntegerType,
-//     DoubleType,
-//     //...
-// }
-
-// #define STACK_ELEMENT_TYPE_POLICY IntegerType
-//
-// #if STACK_ELEMENT_TYPE == IntegerType
-//     typedef int stack_elem_t
-//     int PoisonValue = 0x666;
-// #elif
