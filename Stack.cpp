@@ -37,13 +37,13 @@ int main(){
 
         scanf("%s", command);
 
-        if(strcmp(command,"push") == 0){
+        if(strcmp(command, "push") == 0){
 
             SCAN_ELEM(&buffer);
             stackPush(stack_p, buffer);
             ON_DEBUG(printStack(stack_p);)
 
-        }else if(strcmp(command,"pop") == 0){
+        }else if(strcmp(command, "pop") == 0){
 
             stackPop(stack_p, &buffer);
             printf("Last element: " VIOLET);
@@ -51,6 +51,13 @@ int main(){
             printf("\n" DEFAULT);
             ON_DEBUG(printStack(stack_p);)
 
+        }else if(strcmp(command, "break") == 0){
+
+            //FIRST_ELEM_P(stack_p)[-1] = 33;
+            //FIRST_ELEM_P(stack_p)[3] = 33;
+            //stack_p->capacity = 3;
+            //stack_p->size = 3;
+            //stack_p = NULL;
         }
     }
 
