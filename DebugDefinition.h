@@ -1,8 +1,7 @@
-#define IS_COMMON_PROTECT 0 //TODO IS_VERIFY IS_HASH IS_CANARY
-#define IS_CANARY_PROTECT 0
+#define IS_COMMON_PROTECT 1
+#define IS_CANARY_PROTECT 1
 #define IS_HASH_PROTECT   0
 
-//TODO защита от взлома стэка канарейками и хэшом (два хэша: на данные и на сам стэк)
 
 //TODO в лог файл вся история, в недебаг режиме не делаем никакой файл
 
@@ -27,13 +26,16 @@
 
 #endif
 
+//Если нет канареек, data сразу указывает на первый элемент
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+
 const size_t       TRUE_CANARY_DATA_LEFT   = 0xC0FE;   //TODO разные
 const size_t       TRUE_CANARY_DATA_RIGHT  = 0x67DED76;//TODO разные
 const size_t       TRUE_CANARY_STACK_LEFT  = 0x228322; //TODO разные
 const size_t       TRUE_CANARY_STACK_RIGHT = 0xABCDEF; //TODO разные
 
-//Если нет канареек, data сразу указывает на первый элемент
-#if IS_CANARY_PROTECT //-----------------------------------------------------------------------------------------------------------------------------
+
+#if IS_CANARY_PROTECT
 
     #define ON_CANARY(...) __VA_ARGS__
 

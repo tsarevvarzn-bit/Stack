@@ -10,8 +10,8 @@ code_errors stackPush         (stack_t*  const stack_p, const elem_type new_elem
 code_errors stackPop          (stack_t*  const stack_p, elem_type* const last_elem_p);
 void        stackDelete       (stack_t*  const stack_p);
 
-code_errors stackResizeUp  (   stack_t*  const stack_p);
-code_errors stackResizeDown(   stack_t*  const stack_p);
+code_errors stackResizeUp     (stack_t*  const stack_p);
+code_errors stackResizeDown   (stack_t*  const stack_p);
 
 
 
@@ -129,7 +129,7 @@ code_errors        stackPush(stack_t* const stack_p, const elem_type new_elem){
 
     code_errors error_code = correct;
 
-    if(stack_p->size == stack_p->capacity && (error_code = stackResizeUp(stack_p)) != correct){
+    if(stack_p->size >= stack_p->capacity && (error_code = stackResizeUp(stack_p)) != correct){
 
         return error_code;
     }
@@ -157,6 +157,8 @@ code_errors     stackPop(stack_t* const stack_p, elem_type* const last_elem_p){
 
         code_errors error_code = correct;
 
+        ON_HASH(recalculateHashes(stack_p);)
+
         if(stack_p->size * 4 <= stack_p->capacity && stack_p->capacity != 1 && (error_code = stackResizeDown(stack_p)) != correct){
 
             return error_code;
@@ -164,9 +166,9 @@ code_errors     stackPop(stack_t* const stack_p, elem_type* const last_elem_p){
 
     }else{
 
-        printf("Stack " CYAN ON_DEBUG("[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" YELLOW
-               "Stack underflow, there is no elements in stack\n" DEFAULT,
-                ON_DEBUG(stack_p,) stack_p->size, stack_p->capacity);
+        printf(ON_COMMON("Stack " CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity error:\n" ) YELLOW
+               "Stack underflow, there is no elements in stack\n" DEFAULT
+               ON_COMMON(, stack_p, stack_p->size, stack_p->capacity));
 
         *last_elem_p = POISON;
     }
@@ -248,7 +250,7 @@ code_errors stackResizeDown(stack_t* const stack_p){
 
     stack_p->data = (char*) new_pointer;
     stack_p->capacity /= 2;
-    ON_CANARY(CANARY_DATA_LEFT(stack_p) = TRUE_CANARY_DATA_LEFT;)
+    ON_CANARY(CANARY_DATA_RIGHT(stack_p) = TRUE_CANARY_DATA_RIGHT;)
 
     ON_DEBUG(printf("Stack " VIOLET "reallocate" DEFAULT ", new stack capacity: " YELLOW "%llu\n" DEFAULT, stack_p->capacity);)
 

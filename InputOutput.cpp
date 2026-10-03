@@ -8,16 +8,17 @@ void        printStack(const stack_t* const stack_p){
     MY_ASSERT(stack_p)
 
               printf("\nPrinting of stack " CYAN ON_COMMON("[%p]") DEFAULT ":\n\n" DEFAULT ON_COMMON(, stack_p));
-    ON_CANARY(printf("\tcanary_left  "                 CYAN "[%p]"  DEFAULT ": "   BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX\n" DEFAULT, &stack_p->canary_left, stack_p->canary_left, TRUE_CANARY_STACK_LEFT);)
-              printf("\tsize         "       CYAN ON_COMMON("[%p]") DEFAULT ": "  GREEN "%llu\n" DEFAULT, ON_COMMON(&stack_p->size,) stack_p->size);
-              printf("\tcapacity     "       CYAN ON_COMMON("[%p]") DEFAULT ": " YELLOW "%llu\n" DEFAULT, ON_COMMON(&stack_p->capacity,) stack_p->capacity);
-              printf("\tdata"       CYAN ON_COMMON("         [%p]") DEFAULT ":\n\n" DEFAULT ON_COMMON(,stack_p->data));
+    ON_CANARY(printf("\tcanary_left  "      CYAN ON_COMMON("[%p]") DEFAULT ": "   BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX\n" DEFAULT ON_COMMON(, &stack_p->canary_left), stack_p->canary_left, TRUE_CANARY_STACK_LEFT);)
+              printf("\tsize         "      CYAN ON_COMMON("[%p]") DEFAULT ": "  GREEN "%llu\n" DEFAULT, ON_COMMON(&stack_p->size,) stack_p->size);
+              printf("\tcapacity     "      CYAN ON_COMMON("[%p]") DEFAULT ": " YELLOW "%llu\n" DEFAULT, ON_COMMON(&stack_p->capacity,) stack_p->capacity);
+              printf("\tdata"      CYAN ON_COMMON("         [%p]") DEFAULT ":\n\n" DEFAULT ON_COMMON(,stack_p->data));
 
     if(stack_p->data){
 
-        ON_CANARY(printf("\t left canary in data: " BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX\n" DEFAULT, CANARY_DATA_LEFT(stack_p), TRUE_CANARY_DATA_LEFT);)
+        ON_CANARY(printf("\t left canary in data" ON_COMMON(CYAN "[%p]" DEFAULT)": " BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX\n" DEFAULT,
+        ON_COMMON(&CANARY_DATA_LEFT(stack_p),) CANARY_DATA_LEFT(stack_p), TRUE_CANARY_DATA_LEFT);)
 
-        printf("\t elemets" CYAN ON_COMMON("[%p]") DEFAULT ":\n" ON_COMMON(, FIRST_ELEM_P(stack_p)));
+        printf("\t elemets" CYAN ON_COMMON("            [%p]") DEFAULT ":\n" ON_COMMON(, FIRST_ELEM_P(stack_p)));
 
         for(size_t i = 0; i < stack_p->capacity ; i++){
 
@@ -53,13 +54,14 @@ void        printStack(const stack_t* const stack_p){
             }
         }
 
-        ON_CANARY(printf("\t right canary in data: " BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX\n" DEFAULT, *((size_t*) (stack_p->data + sizeof(size_t) + sizeof(elem_type) * stack_p->capacity)), TRUE_CANARY_DATA_RIGHT);)
+        ON_CANARY(printf("\t right canary in data" ON_COMMON(CYAN "[%p]" DEFAULT) ": " BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX\n" DEFAULT,
+        ON_COMMON(&CANARY_DATA_RIGHT(stack_p),) CANARY_DATA_RIGHT(stack_p), TRUE_CANARY_DATA_RIGHT);)
     }
 
-    ON_HASH(  printf("\n\tdata_hash    " CYAN "[%p]" DEFAULT ": " BLUE "0x%llX" DEFAULT " - correct", &stack_p->data_hash,   stack_p->data_hash  );)
-    ON_HASH(  printf("\n\tstruct_hash  " CYAN "[%p]" DEFAULT ": " BLUE "0x%llX" DEFAULT " - correct", &stack_p->struct_hash, stack_p->struct_hash);)
+    ON_HASH(  printf("\n\tdata_hash    " CYAN ON_COMMON("[%p]") DEFAULT ": " BLUE "0x%llX" DEFAULT " - correct" ON_COMMON(, &stack_p->data_hash),   stack_p->data_hash  );)
+    ON_HASH(  printf("\n\tstruct_hash  " CYAN ON_COMMON("[%p]") DEFAULT ": " BLUE "0x%llX" DEFAULT " - correct" ON_COMMON(, &stack_p->struct_hash), stack_p->struct_hash);)
 
-    ON_CANARY(printf("\n\tcanary_right " CYAN "[%p]" DEFAULT ": " BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX" DEFAULT, &stack_p->canary_right, stack_p->canary_right, TRUE_CANARY_STACK_RIGHT);)
+    ON_CANARY(printf("\n\tcanary_right " CYAN ON_COMMON("[%p]") DEFAULT ": " BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX" DEFAULT ON_COMMON(, &stack_p->canary_right), stack_p->canary_right, TRUE_CANARY_STACK_RIGHT);)
 
     printf("\n");
 

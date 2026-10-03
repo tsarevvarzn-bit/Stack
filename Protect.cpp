@@ -9,12 +9,15 @@ code_errors verifyCommon   (const stack_t* const stack_p, const char* const call
 code_errors verifyCanaries (const stack_t*  const stack_p, const char* const call_info);
 
 ON_HASH(
+
 code_errors verifyHash     (const stack_t*  const stack_p, const char* const call_info);
 
 void   recalculateHashes(stack_t* const stack_p);
 size_t calculateHash(const void* const begining_p, const size_t len);
+
 )
 
+ON_DEBUG(
 
 void checkStack(const stack_t* const stack_p, const char* const file_name, unsigned int line, const char* const func_name, const char* const comment){
 
@@ -23,7 +26,7 @@ void checkStack(const stack_t* const stack_p, const char* const file_name, unsig
     MY_ASSERT(comment)
 
     char str[100] = "";
-    sprintf(str, "Check of stack was called in %s:%d in function %s, comment: %s", file_name, line, func_name, comment);
+    sprintf(str, "\nCheck of stack was called in %s:%d in function %s, comment: %s", file_name, line, func_name, comment);
 
     if(verifyStack(stack_p, str) != correct){
 
@@ -65,6 +68,10 @@ code_errors verifyStack(const stack_t* const stack_p, const char* const call_inf
     return err_code;
 }
 
+)
+
+ON_COMMON(
+
 code_errors verifyCommon(const stack_t* const stack_p, const char* const call_info){
 
     MY_ASSERT(stack_p)
@@ -86,7 +93,7 @@ code_errors verifyCommon(const stack_t* const stack_p, const char* const call_in
 
                 printStack(stack_p);
 
-                //errCode |= stack_size_larger_than_capacity;
+                return stack_size_larger_than_capacity;
             }
 
         }else{
@@ -96,6 +103,8 @@ code_errors verifyCommon(const stack_t* const stack_p, const char* const call_in
                    ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
 
             printStack(stack_p);
+
+            return stack_capacity_is_zero;
         }
 
 
@@ -112,6 +121,8 @@ code_errors verifyCommon(const stack_t* const stack_p, const char* const call_in
 
     return correct;
 }
+
+)
 
 ON_CANARY(
 
@@ -176,7 +187,7 @@ code_errors verifyHash(const stack_t* const stack_p, const char* const call_info
     MY_ASSERT(call_info)
 
     size_t real_data_hash   = calculateHash(stack_p->data, stack_p->capacity * sizeof(elem_type) ON_CANARY(+ sizeof(TRUE_CANARY_DATA_LEFT) + sizeof(TRUE_CANARY_DATA_RIGHT)));
-    size_t real_struct_hash = calculateHash(stack_p, ((char*) (&(stack_p->data_hash))) - ((char*) stack_p) + sizeof(stack_p->data_hash));
+    size_t real_struct_hash = calculateHash(stack_p, ((const char*) (&(stack_p->data_hash))) - ((const char*) stack_p) + sizeof(stack_p->data_hash));
 
     if(real_data_hash != stack_p->data_hash){
 
@@ -215,7 +226,7 @@ size_t calculateHash(const void* const begining_p, const size_t len){
 
     MY_ASSERT(begining_p)
 
-    char* begining_char_p = (char*) begining_p;
+    const char* begining_char_p = (const char*) begining_p;
 
     size_t hash = 5381;
 
