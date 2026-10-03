@@ -1,19 +1,17 @@
 #include "Common.h"
+#include "TypeDefinition.h"
+#include "DebugDefinition.h"
+#include "InputOutput.cpp"
+#include "Protect.cpp"
 
-code_errors createAndInitStack(      stack_t** const stack_p, const size_t capacity);
-void        printStack        (const stack_t*  const stack_p);
-code_errors stackPush         (      stack_t*  const stack_p, const elem_type new_elem);
-code_errors stackPop          (      stack_t*  const stack_p, elem_type* const last_elem_p);
-void        stackDelete       (      stack_t*  const stack_p);
-code_errors verifyStack       (const stack_t*  const stack_p, const char* const call_info);
-void        checkStack        (const stack_t*  const stack_p, const char* const file_name, unsigned int line, const char* const func_name, const char* const comment);
-code_errors verifyCanaries    (const stack_t*  const stack_p, const char* const call_info);
-void        stackInit         (      stack_t*  const stack_p, const size_t capacity);
+code_errors createAndInitStack(stack_t** const stack_p, const size_t capacity);
+void        stackInit         (stack_t*  const stack_p, const size_t capacity);
+code_errors stackPush         (stack_t*  const stack_p, const elem_type new_elem);
+code_errors stackPop          (stack_t*  const stack_p, elem_type* const last_elem_p);
+void        stackDelete       (stack_t*  const stack_p);
 
-code_errors stackResizeUp     (      stack_t*  const stack_p);
-code_errors stackResizeDown   (      stack_t*  const stack_p);
-
-void        printBeautifulSpaces(size_t elem_index, size_t max_index);
+code_errors stackResizeUp  (   stack_t*  const stack_p);
+code_errors stackResizeDown(   stack_t*  const stack_p);
 
 
 
@@ -30,7 +28,7 @@ int main(){
         return errno;
     }
 
-    printStack(stack_p);
+    ON_DEBUG(printStack(stack_p);)
 
     char command[MAX_COMMAND_LEN] = "";
     elem_type buffer = 0;
@@ -43,7 +41,7 @@ int main(){
 
             SCAN_ELEM(&buffer);
             stackPush(stack_p, buffer);
-            printStack(stack_p);
+            ON_DEBUG(printStack(stack_p);)
 
         }else if(strcmp(command,"pop") == 0){
 
@@ -51,17 +49,13 @@ int main(){
             printf("Last element: " VIOLET);
             PRINT_ELEM(buffer);
             printf("\n" DEFAULT);
-            printStack(stack_p);
+            ON_DEBUG(printStack(stack_p);)
 
         }
     }
 
     stackDelete(stack_p);
 }
-
-
-//TODO вопрос: если realloc() выдал указатель null, то мы можем пользоваться старым указателем, сохранились ли наши данные? - ДА, НУЖНО СОХРАНЯТЬ СТАРЫЙ УКАЗАТЕЛЬ
-//TODO вопрос: если мы урезаем память, гарантируется ли что realloc не выдаст ноль - ДА, НО ПРОВЕРЯЕМ
 
 code_errors createAndInitStack(stack_t** const stack_p_p, const size_t capacity){
 
@@ -76,7 +70,7 @@ code_errors createAndInitStack(stack_t** const stack_p_p, const size_t capacity)
     }
 
 
-    (*stack_p_p)->data = (char*) calloc(1 , capacity * sizeof(elem_type) + 2 * sizeof(size_t));
+    (*stack_p_p)->data = (char*) calloc(1 , capacity * sizeof(elem_type) + sizeof(TRUE_CANARY_DATA_LEFT) + sizeof(TRUE_CANARY_DATA_RIGHT));
 
     if((*stack_p_p)->data == NULL){
 
@@ -92,66 +86,40 @@ code_errors createAndInitStack(stack_t** const stack_p_p, const size_t capacity)
     return correct;
 }
 
-void        printStack(const stack_t* const stack_p){
+void stackInit(stack_t* const stack_p, const size_t capacity){
 
-    MY_ASSERT(stack_p)
+    MY_ASSERT(stack_p);
 
-             printf("\nPrinting of stack " CYAN ON_DEBUG("[%p]") DEFAULT ":\n\n" DEFAULT ON_DEBUG(, stack_p));
-    ON_DEBUG(printf("\tcanary_left "              CYAN "[%p]"  DEFAULT ": " BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX\n" DEFAULT, &stack_p->canary_left, stack_p->canary_left, CANARY);)
-             printf("\tsize        "     CYAN ON_DEBUG("[%p]") DEFAULT ": "  GREEN "%llu\n" DEFAULT, ON_DEBUG(&stack_p->size,) stack_p->size);
-             printf("\tcapacity    "     CYAN ON_DEBUG("[%p]") DEFAULT ": "  YELLOW "%llu\n" DEFAULT, ON_DEBUG(&stack_p->capacity,) stack_p->capacity);
-             printf("\tdata"     CYAN ON_DEBUG("        [%p]") DEFAULT ":\n\n" DEFAULT ON_DEBUG(,stack_p->data));
 
-    if(stack_p->data){
+    ON_CANARY(stack_p->canary_left = TRUE_CANARY_STACK_LEFT;)
+    stack_p->size = 0;
+    stack_p->capacity = capacity;
+    ON_CANARY(stack_p->canary_right = TRUE_CANARY_STACK_RIGHT;)
 
-        ON_DEBUG(printf("\t left canary in data: " BLUE "0x%llX" DEFAULT ", true canary:" BLUE "0x%llX\n" DEFAULT, *((size_t*) (stack_p->data)), CANARY);)
+    ON_CANARY(CANARY_DATA_LEFT(stack_p)  = TRUE_CANARY_DATA_LEFT;)
+    ON_CANARY(CANARY_DATA_RIGHT(stack_p) = TRUE_CANARY_DATA_RIGHT;)
 
-        printf("\t elemets" CYAN ON_DEBUG("[%p]") DEFAULT ":\n", stack_p->first_elem_p);
+    for(size_t i = 0; i < capacity; i++){
 
-        if(stack_p->first_elem_p){
+        #if IS_CANARY_PROTECT
 
-            for(size_t i = 0; i < stack_p->capacity ; i++){
+            ((elem_type*) (stack_p->data + sizeof(TRUE_CANARY_DATA_LEFT)))[i] = POISON;
 
-                printf("\t\t");
-                if(i < stack_p->size){
+        #else
 
-                    printf(GREEN "*"  DEFAULT "[" YELLOW "%llu" DEFAULT "]" DEFAULT, i);
-                    printBeautifulSpaces(i, stack_p->capacity - 1);
-                    printf(" = " VIOLET);
-                    PRINT_ELEM(stack_p->first_elem_p[i]);
-                    printf(DEFAULT);
+            ((elem_type*) stack_p->data)[i] = POISON;
 
-                    ON_DEBUG(
-                    if(IS_POISON(stack_p->first_elem_p[i]))
-                        printf(YELLOW " - POISON" DEFAULT);
-                    )
-
-                    printf("\n");
-
-                }else{
-
-                    printf(DEFAULT " [" DEFAULT "%llu" DEFAULT "]" DEFAULT, i);
-                    printBeautifulSpaces(i, stack_p->capacity - 1);
-                    printf(" = ");
-                    PRINT_ELEM(stack_p->first_elem_p[i]);
-
-                    ON_DEBUG(
-                    if(!IS_POISON(stack_p->first_elem_p[i]))
-                        printf(YELLOW " - NOT A POISON" DEFAULT);
-                    )
-
-                    printf("\n");
-                }
-            }
-        }
-
-        ON_DEBUG(printf("\t right canary in data: " BLUE "0x%llX" DEFAULT ", true canary:" BLUE "0x%llX\n" DEFAULT, *((size_t*) (stack_p->data + sizeof(size_t) + sizeof(elem_type) * stack_p->capacity)), CANARY);)
+        #endif
     }
 
+    ON_HASH(recalculateHashes(stack_p);)
+    //TODO с начала стэка
 
-    ON_DEBUG(printf("\n\tcanary_right"      CYAN "[%p]" DEFAULT ": " BLUE "0x%llX" DEFAULT ", true canary: " BLUE "0x%llX\n" DEFAULT, &stack_p->canary_right, stack_p->canary_right, CANARY);)
+    //stack_p->size = 20;
+    //stack_p->capacity = 50;
+    //stack_p->data = NULL;
 
-    MY_ASSERT(stack_p->first_elem_p)
+    CHECK_STACK(stack_p, "check on output");
 }
 
 code_errors        stackPush(stack_t* const stack_p, const elem_type new_elem){
@@ -166,7 +134,9 @@ code_errors        stackPush(stack_t* const stack_p, const elem_type new_elem){
         return error_code;
     }
 
-    stack_p->first_elem_p[stack_p->size++] = new_elem;
+    FIRST_ELEM_P(stack_p)[stack_p->size++] = new_elem;
+
+    ON_HASH(recalculateHashes(stack_p);)
 
     CHECK_STACK(stack_p, "check on exit");
 
@@ -181,8 +151,8 @@ code_errors     stackPop(stack_t* const stack_p, elem_type* const last_elem_p){
 
     if(stack_p->size != 0){
 
-        *last_elem_p = stack_p->first_elem_p[stack_p->size - 1];
-        stack_p->first_elem_p[stack_p->size - 1] = POISON;
+        *last_elem_p = FIRST_ELEM_P(stack_p)[stack_p->size - 1];
+        FIRST_ELEM_P(stack_p)[stack_p->size - 1] = POISON;
         stack_p->size--;
 
         code_errors error_code = correct;
@@ -201,6 +171,8 @@ code_errors     stackPop(stack_t* const stack_p, elem_type* const last_elem_p){
         *last_elem_p = POISON;
     }
 
+    ON_HASH(recalculateHashes(stack_p);)
+
     CHECK_STACK(stack_p, "check on exit");
 
     return correct;
@@ -215,93 +187,13 @@ void        stackDelete(stack_t* const stack_p){
     free(stack_p);
 }
 
-code_errors verifyStack(const stack_t* const stack_p, const char* const call_info){
-
-    MY_ASSERT(stack_p)
-    MY_ASSERT(call_info)
-
-    if(stack_p->data != NULL){//TODO канарейки и хэши
-
-        if(stack_p->first_elem_p != NULL){
-
-            if(((char*) stack_p->first_elem_p) - stack_p->data == sizeof(size_t)){
-
-                if(stack_p->size <= stack_p->capacity){
-
-                    return verifyCanaries(stack_p, call_info);
-
-                }else{
-
-                    printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" CYAN "[%p]" DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
-                           ON_DEBUG("size > capacity" YELLOW ", stack dump:\n") DEFAULT,
-                           ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
-
-                    printStack(stack_p);
-
-                    return stack_size_larger_than_capacity;
-                }
-            }else{
-
-                printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" ON_DEBUG(CYAN "[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
-                   ON_DEBUG("stack_p->first_elem_p != stack_p->data + sizeof(size_t)" YELLOW ", stack dump:\n" DEFAULT),
-                   ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
-
-                printStack(stack_p);
-
-                return stack_first_elem_p_is_null;
-            }
-        }else{
-
-            printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" ON_DEBUG(CYAN "[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
-                   ON_DEBUG("stack_p->first_elem_p == NULL" YELLOW ", stack dump:\n" DEFAULT),
-                   ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
-
-            printStack(stack_p);
-
-            return stack_first_elem_p_is_null;
-        }
-
-    }else{
-
-        printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" ON_DEBUG(CYAN "[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
-               ON_DEBUG("stack_p->data == NULL" YELLOW ", stack dump:\n") DEFAULT,
-               ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
-
-        printStack(stack_p);
-
-        return stack_data_is_NULL;
-    }
-}
-
-void        printBeautifulSpaces(size_t elem_index, size_t max_index){
-
-    MY_ASSERT(elem_index <= max_index)
-
-    int size_log = 0;
-
-    while(elem_index >= 10){
-
-        elem_index /= 10;
-        size_log++;
-    }
-
-    while(max_index >= 10){
-
-        max_index /= 10;
-        size_log--;
-
-        if(size_log < 0){
-            putchar(' ');
-        }
-    }
-}
-
 code_errors stackResizeUp(stack_t* const stack_p){
 
     MY_ASSERT(stack_p)
     CHECK_STACK(stack_p, "check on input");
 
-    void* new_pointer = realloc(stack_p->data, stack_p->capacity * sizeof(elem_type) * 2 + sizeof(size_t) * 2);
+    void* new_pointer = realloc(stack_p->data,
+    (stack_p->capacity * 2) * sizeof(elem_type) ON_CANARY( + sizeof(TRUE_CANARY_DATA_LEFT) + sizeof(TRUE_CANARY_DATA_RIGHT)));
 
     if(new_pointer == NULL){
 
@@ -316,16 +208,17 @@ code_errors stackResizeUp(stack_t* const stack_p){
     }
 
     stack_p->data = (char*) new_pointer;
-    stack_p->first_elem_p = (elem_type*) (stack_p->data + sizeof(size_t));
     stack_p->capacity *= 2;
-    *((size_t*) (stack_p->data + sizeof(size_t) + sizeof(elem_type) * stack_p->capacity)) = CANARY;
+    ON_CANARY(CANARY_DATA_RIGHT(stack_p) = TRUE_CANARY_DATA_RIGHT;)
 
     for(size_t i = stack_p->capacity / 2; i < stack_p->capacity; i++){
 
-        stack_p->first_elem_p[i] = POISON;
+        FIRST_ELEM_P(stack_p)[i] = POISON;
     }
 
     ON_DEBUG(printf("Stack " VIOLET "reallocate" DEFAULT ", new stack capacity: " YELLOW "%llu\n" DEFAULT, stack_p->capacity);)
+
+    ON_HASH(recalculateHashes(stack_p);)
 
     CHECK_STACK(stack_p, "check on exit");
 
@@ -338,7 +231,8 @@ code_errors stackResizeDown(stack_t* const stack_p){
     CHECK_STACK(stack_p, "check on input");
 
 
-    void* new_pointer = realloc(stack_p->data, stack_p->capacity * sizeof(elem_type) / 2 + sizeof(size_t) * 2);
+    void* new_pointer = realloc(stack_p->data,
+    (stack_p->capacity / 2) * sizeof(elem_type) ON_CANARY( + sizeof(TRUE_CANARY_DATA_LEFT) + sizeof(TRUE_CANARY_DATA_RIGHT)));
 
     if(new_pointer == NULL){
 
@@ -353,105 +247,14 @@ code_errors stackResizeDown(stack_t* const stack_p){
     }
 
     stack_p->data = (char*) new_pointer;
-    stack_p->first_elem_p = (elem_type*) (stack_p->data + sizeof(size_t));
     stack_p->capacity /= 2;
-    *((size_t*) (stack_p->data + sizeof(size_t) + sizeof(elem_type) * stack_p->capacity)) = CANARY;
+    ON_CANARY(CANARY_DATA_LEFT(stack_p) = TRUE_CANARY_DATA_LEFT;)
 
     ON_DEBUG(printf("Stack " VIOLET "reallocate" DEFAULT ", new stack capacity: " YELLOW "%llu\n" DEFAULT, stack_p->capacity);)
+
+    ON_HASH(recalculateHashes(stack_p);)
 
     CHECK_STACK(stack_p, "check on exit");
 
     return correct;
-}
-
-void checkStack(const stack_t* const stack_p, const char* const file_name, unsigned int line, const char* const func_name, const char* const comment){
-
-    MY_ASSERT(file_name)
-    MY_ASSERT(func_name)
-    MY_ASSERT(comment)
-
-    char str[100] = "";
-    sprintf(str, "Check of stack was called in %s:%d in function %s, comment: %s", file_name, line, func_name, comment);
-
-    if(verifyStack(stack_p, str) != correct){
-
-        abort();
-    }
-}
-
-code_errors verifyCanaries(const stack_t* const stack_p, const char* const call_info){
-
-    MY_ASSERT(stack_p)
-    MY_ASSERT(call_info)
-
-    if(stack_p->canary_left != CANARY){
-
-        printf(ON_DEBUG( VIOLET "%s\n" ) DEFAULT "Stack" ON_DEBUG( CYAN "[%p]" ) DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect" ON_DEBUG( ":\n" RED
-            "left canary in stack is dead: " YELLOW "true value of canary: %llX, real value: %llX, stack dump:\n" DEFAULT),
-            ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity ON_DEBUG(, CANARY, stack_p->canary_left));
-
-        printStack(stack_p);
-
-        return left_canary_in_stack_is_dead;
-
-    }else if(stack_p->canary_right != CANARY){
-
-        printf(ON_DEBUG( VIOLET "%s\n" ) DEFAULT "Stack" ON_DEBUG( CYAN "[%p]" ) DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect" ON_DEBUG( ":\n" RED
-            "right canary in stack is dead: " YELLOW "true value of canary: %llX, real value: %llX, stack dump:\n" DEFAULT),
-            ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity ON_DEBUG(, CANARY, stack_p->canary_right));
-
-        printStack(stack_p);
-
-        return right_canary_in_stack_is_dead;
-
-    }else if(*((size_t*) (stack_p->data)) != CANARY){
-
-        printf(ON_DEBUG( VIOLET "%s\n" ) DEFAULT "Stack" ON_DEBUG( CYAN "[%p]" ) DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect" ON_DEBUG( ":\n" RED
-            "left canary in data is dead: " YELLOW "true value of canary: %llX, real value: %llX, stack dump:\n" DEFAULT),
-            ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity ON_DEBUG(, CANARY, *((size_t*) (stack_p->data))));
-
-        printStack(stack_p);
-
-        return left_canary_in_data_is_dead;
-
-    }else if(*((size_t*) (stack_p->data + sizeof(size_t) + sizeof(elem_type) * stack_p->capacity)) != CANARY){
-
-        printf(ON_DEBUG( VIOLET "%s\n" ) DEFAULT "Stack" ON_DEBUG( CYAN "[%p]" ) DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect" ON_DEBUG( ":\n" RED
-            "right canary in data is dead: " YELLOW "true value of canary: %llX, real value: %llX, stack dump:\n" DEFAULT),
-            ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity ON_DEBUG(, CANARY, *((size_t*) (stack_p->data + sizeof(size_t) + sizeof(elem_type) * stack_p->capacity))));
-
-        printStack(stack_p);
-
-        return right_canary_in_data_is_dead;
-
-    }
-
-    return correct;
-}
-
-void stackInit(stack_t* const stack_p, const size_t capacity){
-
-    MY_ASSERT(stack_p);
-
-
-    stack_p->canary_left = CANARY;
-    stack_p->size = 0;
-    stack_p->capacity = capacity;
-    stack_p->first_elem_p = (elem_type*) (stack_p->data + sizeof(size_t));
-    stack_p->canary_right = CANARY;
-
-    *((size_t*) (stack_p->data)) = CANARY;
-    *((size_t*) (stack_p->data + sizeof(size_t) + sizeof(elem_type) * stack_p->capacity)) = CANARY;
-
-    for(size_t i = 0; i < capacity; i++){
-
-        stack_p->first_elem_p[i] = POISON;
-    }
-
-    stack_p->first_elem_p[2] = 2;
-    //stack_p->size = 20;
-    //stack_p->capacity = 50;
-    //stack_p->data = NULL;
-
-    CHECK_STACK(stack_p, "check on output");
 }
