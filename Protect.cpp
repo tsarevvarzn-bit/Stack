@@ -77,38 +77,7 @@ code_errors verifyCommon(const stack_t* const stack_p, const char* const call_in
     MY_ASSERT(stack_p)
     MY_ASSERT(call_info)
 
-    if(stack_p->data != NULL){
-
-        if(stack_p->capacity != 0){
-
-            if(stack_p->size <= stack_p->capacity){
-
-                return correct;
-
-            }else{//TODO ON_DEBUG сейчас ничего не делает
-
-                printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" ON_DEBUG(CYAN "[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
-                       ON_DEBUG("size > capacity" YELLOW ", stack dump:\n") DEFAULT,
-                       ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
-
-                printStack(stack_p);
-
-                return stack_size_larger_than_capacity;
-            }
-
-        }else{
-
-            printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" ON_DEBUG(CYAN "[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
-                   ON_DEBUG("capacity = 0" YELLOW ", stack dump:\n") DEFAULT,
-                   ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
-
-            printStack(stack_p);
-
-            return stack_capacity_is_zero;
-        }
-
-
-    }else{
+    if(stack_p->data == NULL){
 
         printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" ON_DEBUG(CYAN "[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
                ON_DEBUG("stack_p->data == NULL" YELLOW ", stack dump:\n") DEFAULT,
@@ -119,7 +88,30 @@ code_errors verifyCommon(const stack_t* const stack_p, const char* const call_in
         return stack_data_is_NULL;
     }
 
+    if(stack_p->capacity == 0){
+
+        printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" ON_DEBUG(CYAN "[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
+               ON_DEBUG("capacity = 0" YELLOW ", stack dump:\n") DEFAULT,
+               ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
+
+        printStack(stack_p);
+
+        return stack_capacity_is_zero;
+    }
+
+    if(stack_p->size > stack_p->capacity){
+
+        printf(ON_DEBUG(VIOLET "%s\n") DEFAULT "Stack" ON_DEBUG(CYAN "[%p]") DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect:\n" RED
+               ON_DEBUG("size > capacity" YELLOW ", stack dump:\n") DEFAULT,
+               ON_DEBUG(call_info, stack_p,) stack_p->size, stack_p->capacity);
+
+        printStack(stack_p);
+
+        return stack_size_larger_than_capacity;
+    }
+
     return correct;
+
 }
 
 )
@@ -143,7 +135,9 @@ code_errors verifyCanaries(const stack_t* const stack_p, const char* const call_
 
         return left_canary_in_stack_is_dead;
 
-    }else if(stack_p->canary_right != TRUE_CANARY_STACK_RIGHT){
+    }
+
+    if(stack_p->canary_right != TRUE_CANARY_STACK_RIGHT){
 
         printf(ON_DEBUG( VIOLET "%s\n" ) DEFAULT "Stack" ON_DEBUG( CYAN "[%p]" ) DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect" ON_DEBUG( ":\n" RED
             "right canary in stack is dead: " YELLOW "true value of canary: %llX, real value: %llX, stack dump:\n" DEFAULT),
@@ -153,7 +147,9 @@ code_errors verifyCanaries(const stack_t* const stack_p, const char* const call_
 
         return right_canary_in_stack_is_dead;
 
-    }else if(CANARY_DATA_LEFT(stack_p) != TRUE_CANARY_DATA_LEFT){
+    }
+
+    if(CANARY_DATA_LEFT(stack_p) != TRUE_CANARY_DATA_LEFT){
 
         printf(ON_DEBUG( VIOLET "%s\n" ) DEFAULT "Stack" ON_DEBUG( CYAN "[%p]" ) DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect" ON_DEBUG( ":\n" RED
             "left canary in data is dead: " YELLOW "true value of canary: %llX, real value: %llX, stack dump:\n" DEFAULT),
@@ -163,7 +159,9 @@ code_errors verifyCanaries(const stack_t* const stack_p, const char* const call_
 
         return left_canary_in_data_is_dead;
 
-    }else if(CANARY_DATA_RIGHT(stack_p)  != TRUE_CANARY_DATA_RIGHT){
+    }
+
+    if(CANARY_DATA_RIGHT(stack_p)  != TRUE_CANARY_DATA_RIGHT){
 
         printf(ON_DEBUG( VIOLET "%s\n" ) DEFAULT "Stack" ON_DEBUG( CYAN "[%p]" ) DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect" ON_DEBUG( ":\n" RED
             "right canary in data is dead: " YELLOW "true value of canary: %llX, real value: %llX, stack dump:\n" DEFAULT),
@@ -199,7 +197,9 @@ code_errors verifyHash(const stack_t* const stack_p, const char* const call_info
 
         return data_hash_is_incorrect;
 
-    }else if(real_struct_hash != stack_p->struct_hash){
+    }
+
+    if(real_struct_hash != stack_p->struct_hash){
 
         printf(ON_DEBUG( VIOLET "%s\n" ) DEFAULT "Stack" ON_DEBUG( CYAN "[%p]" ) DEFAULT " with " GREEN "%llu" DEFAULT " size and " YELLOW "%llu" DEFAULT " capacity is incorrect" ON_DEBUG( ":\n" RED
             "struct hash is incorrect: " YELLOW "true value of hash: %llX, real value: %llX, stack dump:\n" DEFAULT),

@@ -120,11 +120,6 @@ void stackInit(stack_t* const stack_p, const size_t capacity){
     }
 
     ON_HASH(recalculateHashes(stack_p);)
-    //TODO с начала стэка
-
-    //stack_p->size = 20;
-    //stack_p->capacity = 50;
-    //stack_p->data = NULL;
 
     CHECK_STACK(stack_p, "check on output");
 }
