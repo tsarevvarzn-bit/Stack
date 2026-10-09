@@ -4,14 +4,14 @@
 
 # Что делает и как пользоваться
 Основные функции для прямой работы со стэком содержаться в главном файле Stack.cpp:
-- `code_errors createAndInitStack(stack_t** const stack_p_p, const size_t capacity)`<br>  выделяет динмически память под стэк размера capacity, 
+- `code_errors createAndInitStack (stack_t** const stack_p_p, const size_t capacity)`<br>  выделяет динмически память под стэк размера capacity, 
 вызывает функцию-инициализатор и кладет указатель на созданный стэк по адресу stack_p_p
-- `void stackInit(stack_t* const stack_p, const size_t capacity)`<br>  инициализирует стэк, лежащий по укащателю stack_p размера capacity, вызывается функцией createAndInitStack()
-- `code_errors stackPush(stack_t* const stack_p, const elem_type new_elem)`<br>  пушит в стэк по указателю stack_p элемент new_elem, при необходимости динамически расширяет стэк
-- `code_errors stackPop(stack_t* const stack_p, elem_type* const last_elem_p)`<br>  попит из стэка по указателю stack_p элемент, кладет его по указателю last_elem_p, если элементов нет печатает warning и выдает poison, выдает код ошибки
-- `void stackDelete(stack_t* const stack_p)`  <br> освобождает динамическую память, выделенную для стэка по указателю stack_p
-- `code_errors stackResizeUp(stack_t* const stack_p)`<br>  увеличивает емкость стэка в два раза, автоматически вызывается stackPush()
-- `code_errors stackResizeDown(stack_t* const stack_p)`<br>  уменьшает емкость стэка в два раза, автоматически вызывается stackPop()
+- `void        stackInit          (stack_t* const stack_p, const size_t capacity)`<br>  инициализирует стэк, лежащий по укащателю stack_p размера capacity, вызывается функцией createAndInitStack()
+- `code_errors stackPush          (stack_t* const stack_p, const elem_type new_elem)`<br>  пушит в стэк по указателю stack_p элемент new_elem, при необходимости динамически расширяет стэк
+- `code_errors stackPop           (stack_t* const stack_p, elem_type* const last_elem_p)`<br>  попит из стэка по указателю stack_p элемент, кладет его по указателю last_elem_p, если элементов нет печатает warning и выдает poison, выдает код ошибки
+- `void        stackDelete        (stack_t* const stack_p)`  <br> освобождает динамическую память, выделенную для стэка по указателю stack_p
+- `code_errors stackResizeUp      (stack_t* const stack_p)`<br>  увеличивает емкость стэка в два раза, автоматически вызывается stackPush()
+- `code_errors stackResizeDown    (stack_t* const stack_p)`<br>  уменьшает емкость стэка в два раза, автоматически вызывается stackPop()
 
 ## Структура проекта
 ```text
